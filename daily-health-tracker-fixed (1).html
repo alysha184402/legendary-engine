@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Health Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary: #ffffff; --bg-secondary: #f5f5f3; --bg-tertiary: #eeede9;
+    --text-primary: #1a1a18; --text-secondary: #6b6b67; --text-tertiary: #9b9b96;
+    --border-light: rgba(0,0,0,0.1); --border-mid: rgba(0,0,0,0.18); --border-strong: rgba(0,0,0,0.28);
+    --radius-md: 8px; --radius-lg: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'Courier New', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1e1e1c; --bg-secondary: #282826; --bg-tertiary: #323230;
+      --text-primary: #e8e8e4; --text-secondary: #a0a09b; --text-tertiary: #6b6b67;
+      --border-light: rgba(255,255,255,0.08); --border-mid: rgba(255,255,255,0.14); --border-strong: rgba(255,255,255,0.22);
+    }
+  }
+  body { font-family: var(--font); background: var(--bg-tertiary); color: var(--text-primary); min-height: 100vh; }
+  .app { padding: 1.5rem 1rem 4rem; max-width: 700px; margin: 0 auto; }
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 0.25rem; }
+  .app-title { font-size: 20px; font-weight: 600; color: var(--text-primary); }
+  .date-badge { font-size: 12px; color: var(--text-secondary); background: var(--bg-secondary); border: 0.5px solid var(--border-light); border-radius: var(--radius-md); padding: 4px 10px; white-space: nowrap; }
+  .save-status { font-size: 12px; color: var(--text-secondary); margin-bottom: 1rem; }
+  .save-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #639922; margin-right: 5px; vertical-align: middle; }
+  .save-dot.pending { background: #EF9F27; }
+  .section { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 0.875rem; }
+  .section-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.875rem; }
+  .field { margin-bottom: 0.875rem; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { font-size: 13px; color: var(--text-primary); margin-bottom: 5px; font-weight: 500; }
+  .field-sublabel { font-size: 12px; color: var(--text-secondary); margin-bottom: 5px; }
+  .divider { height: 0.5px; background: var(--border-light); margin: 0.75rem 0; }
+  .tri-row { display: flex; gap: 5px; }
+  .tri-btn { flex: 1; padding: 7px 6px; border-radius: var(--radius-md); border: 0.5px solid var(--border-light); background: var(--bg-secondary); cursor: pointer; font-size: 12px; color: var(--text-secondary); text-align: center; transition: all 0.12s; font-family: var(--font); }
+  .tri-btn:hover { border-color: var(--border-mid); }
+  .tri-btn.active-good    { background: #EAF3DE; border-color: #639922; color: #3B6D11; }
+  .tri-btn.active-okay    { background: #FAEEDA; border-color: #EF9F27; color: #854F0B; }
+  .tri-btn.active-bad     { background: #FCEBEB; border-color: #E24B4A; color: #A32D2D; }
+  .tri-btn.active-none     { background: #E1F5EE; border-color: #1D9E75; color: #0F6E56; }
+  .tri-btn.active-mild     { background: #FAEEDA; border-color: #EF9F27; color: #854F0B; }
+  .tri-btn.active-moderate { background: #FAECE7; border-color: #D85A30; color: #712B13; }
+  .tri-btn.active-severe   { background: #FCEBEB; border-color: #E24B4A; color: #A32D2D; }
+  .tri-btn.active-low      { background: #EAF3DE; border-color: #639922; color: #3B6D11; }
+  .tri-btn.active-high     { background: #FCEBEB; border-color: #E24B4A; color: #A32D2D; }
+  .tri-btn.active-relief-good { background: #EAF3DE; border-color: #639922; color: #3B6D11; }
+  .tri-btn.active-relief-some { background: #FAEEDA; border-color: #EF9F27; color: #854F0B; }
+  .tri-btn.active-relief-none { background: #FCEBEB; border-color: #E24B4A; color: #A32D2D; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { padding: 5px 10px; border-radius: 20px; border: 0.5px solid var(--border-light); background: var(--bg-secondary); cursor: pointer; font-size: 12px; color: var(--text-secondary); transition: all 0.12s; user-select: none; }
+  .chip.active { background: #E6F1FB; border-color: #378ADD; color: #185FA5; }
+  .check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .check-row:last-child { margin-bottom: 0; }
+  .check-row input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #378ADD; flex-shrink: 0; }
+  .check-row label { font-size: 13px; color: var(--text-primary); cursor: pointer; }
+  .check-indent { margin-left: 23px; margin-top: 6px; }
+  .slider-wrap { display: flex; align-items: center; gap: 10px; }
+  .slider-wrap input[type=range] { flex: 1; accent-color: #378ADD; }
+  .slider-val { font-size: 13px; font-weight: 500; color: var(--text-secondary); min-width: 32px; text-align: right; }
+  .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-tertiary); margin-top: 2px; }
+  .reveal { display: none; margin-top: 8px; }
+  .reveal.show { display: block; }
+  .stool-details { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 8px 10px; margin-top: 6px; }
+  .stool-row-inner { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 2px; }
+  .appetite-btns { display: flex; gap: 5px; }
+  .appetite-btn { flex: 1; padding: 8px 6px; border-radius: var(--radius-md); border: 0.5px solid var(--border-light); background: var(--bg-secondary); cursor: pointer; font-size: 13px; color: var(--text-secondary); text-align: center; transition: all 0.12s; font-family: var(--font); }
+  .appetite-btn:hover { border-color: var(--border-mid); }
+  .appetite-btn.active-decreased  { background: #FCEBEB; border-color: #E24B4A; color: #A32D2D; }
+  .appetite-btn.active-unchanged  { background: #E1F5EE; border-color: #1D9E75; color: #0F6E56; }
+  .appetite-btn.active-increased  { background: #EAF3DE; border-color: #639922; color: #3B6D11; }
+  textarea { width: 100%; min-height: 60px; resize: vertical; font-size: 13px; border-radius: var(--radius-md); border: 0.5px solid var(--border-light); padding: 7px 10px; background: var(--bg-secondary); color: var(--text-primary); font-family: var(--font); }
+  textarea:focus { outline: none; border-color: var(--border-strong); }
+  input[type=url] { height: 36px; border-radius: var(--radius-md); border: 0.5px solid var(--border-light); padding: 0 10px; background: var(--bg-secondary); color: var(--text-primary); font-family: var(--font); font-size: 13px; }
+  input[type=url]:focus { outline: none; border-color: var(--border-strong); }
+  .bottom-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 1rem; }
+  .btn-primary { flex: 1; padding: 10px 16px; border-radius: var(--radius-md); border: 0.5px solid var(--border-mid); background: var(--bg-secondary); font-size: 14px; color: var(--text-primary); cursor: pointer; font-weight: 500; font-family: var(--font); }
+  .btn-primary:hover { background: var(--bg-tertiary); }
+  .btn-export { padding: 10px 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border-mid); background: transparent; font-size: 13px; color: var(--text-secondary); cursor: pointer; font-family: var(--font); }
+  .btn-export:hover { background: var(--bg-secondary); }
+  .sheets-panel { background: var(--bg-secondary); border: 0.5px solid var(--border-light); border-radius: var(--radius-lg); padding: 0.875rem 1.25rem; margin-bottom: 0.875rem; }
+  .sheets-title { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 6px; }
+  .sheets-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.5; }
+  .sheets-row { display: flex; gap: 8px; }
+  .sheets-input { flex: 1; }
+  .btn-connect { padding: 0 14px; height: 36px; border-radius: var(--radius-md); border: 0.5px solid var(--border-mid); background: var(--bg-primary); font-size: 13px; color: var(--text-primary); cursor: pointer; white-space: nowrap; font-family: var(--font); }
+  .connected-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #0F6E56; background: #E1F5EE; border: 0.5px solid #1D9E75; border-radius: var(--radius-md); padding: 3px 8px; }
+  .history-panel { margin-top: 1.25rem; }
+  .history-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.625rem; }
+  .history-row { background: var(--bg-primary); border: 0.5px solid var(--border-light); border-radius: var(--radius-md); padding: 9px 12px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .history-row:hover { background: var(--bg-secondary); }
+  .history-date { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+  .history-preview { font-size: 12px; color: var(--text-secondary); }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 100; overflow-y: auto; }
+  .modal { background: var(--bg-primary); border: 0.5px solid var(--border-mid); border-radius: var(--radius-lg); padding: 1.25rem; width: 100%; max-width: 520px; }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
+  .modal-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 0.5px solid var(--border-light); gap: 12px; }
+  .modal-row:last-of-type { border-bottom: none; }
+  .modal-key { color: var(--text-secondary); flex-shrink: 0; }
+  .modal-val { color: var(--text-primary); font-weight: 500; text-align: right; }
+  .modal-close { margin-top: 1rem; width: 100%; padding: 8px; border-radius: var(--radius-md); border: 0.5px solid var(--border-mid); background: var(--bg-secondary); font-size: 14px; cursor: pointer; color: var(--text-primary); font-family: var(--font); }
+  .modal-close + .modal-close { margin-top: 6px; }
+  .csv-area { width: 100%; font-size: 11px; font-family: var(--font-mono); min-height: 120px; margin-top: 10px; border-radius: var(--radius-md); border: 0.5px solid var(--border-light); padding: 8px; background: var(--bg-secondary); color: var(--text-secondary); resize: vertical; }
+  .notification { position: fixed; bottom: 20px; right: 20px; background: var(--bg-primary); border: 0.5px solid var(--border-mid); border-radius: var(--radius-md); padding: 10px 16px; font-size: 13px; color: var(--text-primary); z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+  .notification.show { opacity: 1; }
+  .bristol-chart { width: 100%; border-radius: var(--radius-md); margin: 4px 0 8px; display: block; }
+  a { color: #378ADD; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="header-top">
+    <div>
+      <div class="app-title">Daily Health Tracker</div>
+      <div class="save-status"><span class="save-dot" id="saveDot"></span><span id="saveText">All changes saved</span></div>
+    </div>
+    <div class="date-badge" id="dateBadge"></div>
+  </div>
+
+  <!-- Google Sheets -->
+  <div class="sheets-panel">
+    <div class="sheets-title">Google Sheets</div>
+    <div class="sheets-desc" id="sheetsDesc"><a href="#" onclick="showSheetInstructions();return false;">Set up auto-sync</a> to save entries to a spreadsheet automatically.</div>
+    <div class="sheets-row" id="sheetsInputRow">
+      <input type="url" class="sheets-input" id="sheetsUrl" placeholder="https://script.google.com/macros/s/..." />
+      <button class="btn-connect" onclick="connectSheets()">Connect</button>
+    </div>
+    <div id="sheetsConnected" style="display:none;">
+      <span class="connected-badge">&#10003; Connected</span>
+      <button onclick="disconnectSheets()" style="margin-left:8px;font-size:12px;color:var(--text-secondary);background:none;border:none;cursor:pointer;font-family:var(--font);">disconnect</button>
+    </div>
+  </div>
+
+  <!-- SLEEP -->
+  <div class="section">
+    <div class="section-title">Sleep</div>
+    <div class="field">
+      <div class="field-label">Sleep quality</div>
+      <div class="tri-row" data-tri-key="sleepQuality">
+        <button class="tri-btn" onclick="setTri('sleepQuality',0,'good',this)">Good</button>
+        <button class="tri-btn" onclick="setTri('sleepQuality',1,'okay',this)">Okay</button>
+        <button class="tri-btn" onclick="setTri('sleepQuality',2,'bad',this)">Bad</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Sleep issues</div>
+      <div class="chip-row" id="sleepIssues">
+        <div class="chip" onclick="toggleChip(this)">Interruptions</div>
+        <div class="chip" onclick="toggleChip(this)">Night sweats</div>
+        <div class="chip" onclick="toggleChip(this)">Nightmares</div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Nap</div>
+      <div class="check-row"><input type="checkbox" id="napCheck" onchange="toggle('napDetails',this.checked);markDirty()"><label for="napCheck">Napped today</label></div>
+      <div class="reveal check-indent" id="napDetails">
+        <div class="field-sublabel">Nap quality</div>
+        <div class="tri-row" data-tri-key="napQuality">
+          <button class="tri-btn" onclick="setTri('napQuality',0,'good',this)">Good</button>
+          <button class="tri-btn" onclick="setTri('napQuality',1,'okay',this)">Okay</button>
+          <button class="tri-btn" onclick="setTri('napQuality',2,'bad',this)">Bad</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Energy</div>
+      <div class="tri-row" data-tri-key="energy">
+        <button class="tri-btn" onclick="setTri('energy',0,'good',this)">Good</button>
+        <button class="tri-btn" onclick="setTri('energy',1,'okay',this)">Okay</button>
+        <button class="tri-btn" onclick="setTri('energy',2,'bad',this)">Bad</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WATER -->
+  <div class="section">
+    <div class="section-title">Hydration</div>
+    <div class="field">
+      <div class="field-label">Water intake — <span id="waterVal">0</span> L</div>
+      <input type="range" min="0" max="6" step="1" value="0" id="waterIntake" oninput="document.getElementById('waterVal').textContent=this.value;markDirty();" style="width:100%;accent-color:#378ADD;" />
+      <div class="range-labels"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6 L</span></div>
+    </div>
+  </div>
+
+  <!-- MEDICATIONS -->
+  <div class="section">
+    <div class="section-title">Medications</div>
+    <div class="field">
+      <div class="field-label">Morning</div>
+      <div class="check-row"><input type="checkbox" id="medMorning" onchange="markDirty()"><label for="medMorning">Taken</label></div>
+      <div class="check-row"><input type="checkbox" id="medMorningLate" onchange="markDirty()"><label for="medMorningLate">Taken late</label></div>
+      <div class="check-row"><input type="checkbox" id="medMorningMissed" onchange="markDirty()"><label for="medMorningMissed">Missed</label></div>
+    </div>
+    <div class="divider"></div>
+    <div class="field">
+      <div class="field-label">Evening</div>
+      <div class="check-row"><input type="checkbox" id="medEvening" onchange="markDirty()"><label for="medEvening">Taken</label></div>
+      <div class="check-row"><input type="checkbox" id="medEveningLate" onchange="markDirty()"><label for="medEveningLate">Taken late</label></div>
+      <div class="check-row"><input type="checkbox" id="medEveningMissed" onchange="markDirty()"><label for="medEveningMissed">Missed</label></div>
+    </div>
+    <div class="divider"></div>
+    <div class="field">
+      <div class="field-label">Additional medications</div>
+      <textarea id="medAdditional" placeholder="e.g. rescue inhaler, PRN medications..." oninput="markDirty()"></textarea>
+    </div>
+  </div>
+
+  <!-- CEFALY -->
+  <!-- FIX 1: Corrected HTML structure — acuteCheck field and preventCheck field
+       are now proper siblings, not nested. The closing </div> for acuteCheck's
+       .field was previously missing, causing preventCheck to be nested inside it. -->
+  <div class="section">
+    <div class="section-title">Cefaly sessions</div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="acuteCheck" onchange="toggle('acuteDetails',this.checked);markDirty()"><label for="acuteCheck">Acute session</label></div>
+      <div class="reveal check-indent" id="acuteDetails">
+        <div class="tri-row" data-tri-key="acuteRelief">
+          <button class="tri-btn" onclick="setTri('acuteRelief',0,'relief-good',this)">Good relief</button>
+          <button class="tri-btn" onclick="setTri('acuteRelief',1,'relief-some',this)">Some relief</button>
+          <button class="tri-btn" onclick="setTri('acuteRelief',2,'relief-none',this)">No relief</button>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="field">
+      <div class="field-label">Prevent session</div>
+      <div class="check-row"><input type="checkbox" id="preventCheck" onchange="markDirty()"><label for="preventCheck">Completed</label></div>
+      <div class="check-row"><input type="checkbox" id="preventMissed" onchange="markDirty()"><label for="preventMissed">Missed</label></div>
+    </div>
+  </div>
+
+  <!-- RELIEFS -->
+  <div class="section">
+    <div class="section-title">Reliefs</div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="icePackCheck" onchange="toggle('icePackDetails',this.checked);markDirty()"><label for="icePackCheck">Ice pack</label></div>
+      <div class="reveal check-indent" id="icePackDetails">
+        <div class="tri-row" data-tri-key="icePackRelief">
+          <button class="tri-btn" onclick="setTri('icePackRelief',0,'relief-good',this)">Good relief</button>
+          <button class="tri-btn" onclick="setTri('icePackRelief',1,'relief-some',this)">Some relief</button>
+          <button class="tri-btn" onclick="setTri('icePackRelief',2,'relief-none',this)">No relief</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="heatPadCheck" onchange="toggle('heatPadDetails',this.checked);markDirty()"><label for="heatPadCheck">Heat pad</label></div>
+      <div class="reveal check-indent" id="heatPadDetails">
+        <div class="tri-row" data-tri-key="heatPadRelief">
+          <button class="tri-btn" onclick="setTri('heatPadRelief',0,'relief-good',this)">Good relief</button>
+          <button class="tri-btn" onclick="setTri('heatPadRelief',1,'relief-some',this)">Some relief</button>
+          <button class="tri-btn" onclick="setTri('heatPadRelief',2,'relief-none',this)">No relief</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="massageCheck" onchange="toggle('massageDetails',this.checked);markDirty()"><label for="massageCheck">Massage</label></div>
+      <div class="reveal check-indent" id="massageDetails">
+        <div class="tri-row" data-tri-key="massageRelief">
+          <button class="tri-btn" onclick="setTri('massageRelief',0,'relief-good',this)">Good relief</button>
+          <button class="tri-btn" onclick="setTri('massageRelief',1,'relief-some',this)">Some relief</button>
+          <button class="tri-btn" onclick="setTri('massageRelief',2,'relief-none',this)">No relief</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Other reliefs</div>
+      <textarea id="reliefOther" placeholder="Any other relief methods tried..." oninput="markDirty()"></textarea>
+    </div>
+  </div>
+
+  <!-- MOOD & MENTAL -->
+  <div class="section">
+    <div class="section-title">Mood & mental</div>
+    <div class="field">
+      <div class="field-label">Mood today</div>
+      <div class="chip-row" id="moodChips">
+        <div class="chip" onclick="toggleChip(this)">Angry</div>
+        <div class="chip" onclick="toggleChip(this)">Sad</div>
+        <div class="chip" onclick="toggleChip(this)">Irritable</div>
+        <div class="chip" onclick="toggleChip(this)">Unsure</div>
+        <div class="chip" onclick="toggleChip(this)">Anxious</div>
+        <div class="chip" onclick="toggleChip(this)">Numb</div>
+        <div class="chip" onclick="toggleChip(this)">Happy</div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Cognition</div>
+      <div class="tri-row" data-tri-key="cognition">
+        <button class="tri-btn" onclick="setTri('cognition',0,'good',this)">Good</button>
+        <button class="tri-btn" onclick="setTri('cognition',1,'okay',this)">Okay</button>
+        <button class="tri-btn" onclick="setTri('cognition',2,'bad',this)">Bad</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Stress</div>
+      <div class="tri-row" data-tri-key="stress">
+        <button class="tri-btn" onclick="setTri('stress',0,'low',this)">Low</button>
+        <button class="tri-btn" onclick="setTri('stress',1,'okay',this)">Moderate</button>
+        <button class="tri-btn" onclick="setTri('stress',2,'high',this)">High</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRIGGERS -->
+  <div class="section">
+    <div class="section-title">Triggers</div>
+    <div class="field">
+      <div class="chip-row" id="triggerChips">
+        <div class="chip" onclick="toggleChip(this)">Weather</div>
+        <div class="chip" onclick="toggleChip(this)">Barometric</div>
+        <div class="chip" onclick="toggleChip(this)">Bright lights</div>
+        <div class="chip" onclick="toggleChip(this)">Loud noises</div>
+        <div class="chip" onclick="toggleChip(this)">Strong smells</div>
+        <div class="chip" onclick="toggleChip(this)">Overexertion</div>
+        <div class="chip" onclick="toggleChip(this)">Alcohol</div>
+        <div class="chip" onclick="toggleChip(this)">Caffeine</div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Additional triggers</div>
+      <textarea id="triggersOther" placeholder="Any other triggers..." oninput="markDirty()"></textarea>
+    </div>
+  </div>
+
+  <!-- PAIN & SYMPTOMS -->
+  <div class="section">
+    <div class="section-title">Pain & symptoms</div>
+    <div class="field">
+      <div class="field-label">Migraine</div>
+      <div class="tri-row" data-tri-key="migraine">
+        <button class="tri-btn" onclick="setTri('migraine',0,'none',this);toggle('migraineType',false)">None</button>
+        <button class="tri-btn" onclick="setTri('migraine',1,'mild',this);toggle('migraineType',true)">Mild</button>
+        <button class="tri-btn" onclick="setTri('migraine',2,'moderate',this);toggle('migraineType',true)">Moderate</button>
+        <button class="tri-btn" onclick="setTri('migraine',3,'severe',this);toggle('migraineType',true)">Severe</button>
+      </div>
+      <div class="reveal check-indent" id="migraineType">
+        <div class="field-sublabel" style="margin-top:4px;">Type</div>
+        <div class="chip-row" id="migraineChips">
+          <div class="chip" onclick="toggleChip(this)">Pressure</div>
+          <div class="chip" onclick="toggleChip(this)">Sharp</div>
+          <div class="chip" onclick="toggleChip(this)">Throbbing</div>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Ear pain</div>
+      <div class="tri-row" data-tri-key="earPain">
+        <button class="tri-btn" onclick="setTri('earPain',0,'none',this)">None</button>
+        <button class="tri-btn" onclick="setTri('earPain',1,'mild',this)">Mild</button>
+        <button class="tri-btn" onclick="setTri('earPain',2,'moderate',this)">Moderate</button>
+        <button class="tri-btn" onclick="setTri('earPain',3,'severe',this)">Severe</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Body / joint pain</div>
+      <div class="tri-row" data-tri-key="bodyPain">
+        <button class="tri-btn" onclick="setTri('bodyPain',0,'none',this)">None</button>
+        <button class="tri-btn" onclick="setTri('bodyPain',1,'mild',this)">Mild</button>
+        <button class="tri-btn" onclick="setTri('bodyPain',2,'moderate',this)">Moderate</button>
+        <button class="tri-btn" onclick="setTri('bodyPain',3,'severe',this)">Severe</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Muscle tension / stiffness</div>
+      <div class="tri-row" data-tri-key="muscleTension">
+        <button class="tri-btn" onclick="setTri('muscleTension',0,'none',this)">None</button>
+        <button class="tri-btn" onclick="setTri('muscleTension',1,'mild',this)">Mild</button>
+        <button class="tri-btn" onclick="setTri('muscleTension',2,'moderate',this)">Moderate</button>
+        <button class="tri-btn" onclick="setTri('muscleTension',3,'severe',this)">Severe</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Other symptoms</div>
+      <textarea id="otherSymptoms" placeholder="Describe any other symptoms..." oninput="markDirty()"></textarea>
+    </div>
+  </div>
+
+  <!-- CARDIOVASCULAR -->
+  <div class="section">
+    <div class="section-title">Cardiovascular</div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="lightheadCheck" onchange="toggle('lightheadDetails',this.checked);markDirty()"><label for="lightheadCheck">Lightheadedness</label></div>
+      <div class="reveal check-indent" id="lightheadDetails">
+        <div class="tri-row" data-tri-key="lightheadSev">
+          <button class="tri-btn" onclick="setTri('lightheadSev',0,'mild',this)">Mild</button>
+          <button class="tri-btn" onclick="setTri('lightheadSev',1,'moderate',this)">Moderate</button>
+          <button class="tri-btn" onclick="setTri('lightheadSev',2,'severe',this)">Severe</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="palpCheck" onchange="toggle('palpDetails',this.checked);markDirty()"><label for="palpCheck">Palpitations</label></div>
+      <div class="reveal check-indent" id="palpDetails">
+        <div class="tri-row" data-tri-key="palpSev">
+          <button class="tri-btn" onclick="setTri('palpSev',0,'mild',this)">Mild</button>
+          <button class="tri-btn" onclick="setTri('palpSev',1,'moderate',this)">Moderate</button>
+          <button class="tri-btn" onclick="setTri('palpSev',2,'severe',this)">Severe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERIOD -->
+  <div class="section">
+    <div class="section-title">Period / ovulation</div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="periodCheck" onchange="markDirty()"><label for="periodCheck">Period</label></div>
+      <div class="check-row"><input type="checkbox" id="ovulationCheck" onchange="markDirty()"><label for="ovulationCheck">Ovulation</label></div>
+    </div>
+    <div class="field">
+      <div class="field-label">Additional symptoms</div>
+      <div class="chip-row" id="periodChips">
+        <div class="chip" onclick="toggleChip(this)">Cramps</div>
+        <div class="chip" onclick="toggleChip(this)">Mood swings</div>
+        <div class="chip" onclick="toggleChip(this)">Sexual desire</div>
+        <div class="chip" onclick="toggleChip(this)">Bloating</div>
+        <div class="chip" onclick="toggleChip(this)">Cravings</div>
+        <div class="chip" onclick="toggleChip(this)">Spotting</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GI -->
+  <div class="section">
+    <div class="section-title">Gastrointestinal</div>
+    <div class="field">
+      <div class="field-label">Symptoms</div>
+      <div class="chip-row" id="giChips">
+        <div class="chip" onclick="toggleChip(this)">Pain</div>
+        <div class="chip" onclick="toggleChip(this)">Reflux</div>
+        <div class="chip" onclick="toggleChip(this)">Difficulty</div>
+        <div class="chip" onclick="toggleChip(this)">Gas</div>
+        <div class="chip" onclick="toggleChip(this)">Urgency</div>
+        <div class="chip" onclick="toggleChip(this)">Nausea</div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">Appetite</div>
+      <div class="appetite-btns">
+        <button class="appetite-btn" onclick="setAppetite(-1,this)">Decreased</button>
+        <button class="appetite-btn" onclick="setAppetite(0,this)">No change</button>
+        <button class="appetite-btn" onclick="setAppetite(1,this)">Increased</button>
+      </div>
+    </div>
+    <div class="field">
+      <img src="https://static.wixstatic.com/media/25b00d_48ee4f5072de44cd9c05a76186bc694d~mv2.jpg/v1/fill/w_1000,h_288,al_c,q_80,usm_0.66_1.00_0.01/25b00d_48ee4f5072de44cd9c05a76186bc694d~mv2.jpg" alt="Bristol Stool Chart" class="bristol-chart" />
+    </div>
+    <div class="divider"></div>
+    <div class="field-label" style="margin-bottom:8px;">Bowel movements</div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="stool1Check" onchange="toggle('stool1Details',this.checked);markDirty()"><label for="stool1Check">Movement 1</label></div>
+      <div class="reveal" id="stool1Details"><div class="stool-details" id="stool1Inner"></div></div>
+    </div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="stool2Check" onchange="toggle('stool2Details',this.checked);markDirty()"><label for="stool2Check">Movement 2</label></div>
+      <div class="reveal" id="stool2Details"><div class="stool-details" id="stool2Inner"></div></div>
+    </div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="stool3Check" onchange="toggle('stool3Details',this.checked);markDirty()"><label for="stool3Check">Movement 3</label></div>
+      <div class="reveal" id="stool3Details"><div class="stool-details" id="stool3Inner"></div></div>
+    </div>
+    <div class="field" style="margin-top:0.875rem;">
+      <div class="field-label">GI notes</div>
+      <textarea id="giNotes" placeholder="Any additional gastrointestinal notes..." oninput="markDirty()"></textarea>
+    </div>
+  </div>
+
+  <!-- SKIN / ALLERGY -->
+  <div class="section">
+    <div class="section-title">Skin & allergy</div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="faceRashCheck" onchange="toggle('faceRashDetails',this.checked);markDirty()"><label for="faceRashCheck">Face rash</label></div>
+      <div class="reveal check-indent" id="faceRashDetails">
+        <div class="field-sublabel">Number of occurrences</div>
+        <div class="slider-wrap">
+          <input type="range" min="1" max="5" step="1" value="1" id="faceRashCount" oninput="document.getElementById('faceRashVal').textContent=this.value;markDirty();" style="accent-color:#378ADD;" />
+          <span class="slider-val" id="faceRashVal">1</span>
+        </div>
+        <div class="range-labels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5+</span></div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="hivesCheck" onchange="toggle('hivesDetails',this.checked);markDirty()"><label for="hivesCheck">Hives</label></div>
+      <div class="reveal check-indent" id="hivesDetails">
+        <div class="field-sublabel">Number of occurrences</div>
+        <div class="slider-wrap">
+          <input type="range" min="1" max="5" step="1" value="1" id="hivesCount" oninput="document.getElementById('hivesVal').textContent=this.value;markDirty();" style="accent-color:#378ADD;" />
+          <span class="slider-val" id="hivesVal">1</span>
+        </div>
+        <div class="range-labels"><span>1</span><span>2</span><span>3</span><span>4</span><span>5+</span></div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="check-row"><input type="checkbox" id="eyesNoseCheck" onchange="toggle('eyesNoseDetails',this.checked);markDirty()"><label for="eyesNoseCheck">Eyes / nose</label></div>
+      <div class="reveal check-indent" id="eyesNoseDetails">
+        <div class="tri-row" data-tri-key="eyesNoseSev" style="margin-bottom:6px;">
+          <button class="tri-btn" onclick="setTri('eyesNoseSev',0,'mild',this)">Mild</button>
+          <button class="tri-btn" onclick="setTri('eyesNoseSev',1,'moderate',this)">Moderate</button>
+          <button class="tri-btn" onclick="setTri('eyesNoseSev',2,'severe',this)">Severe</button>
+        </div>
+        <div class="check-row"><input type="checkbox" id="nosebleedCheck" onchange="markDirty()"><label for="nosebleedCheck">Nosebleed</label></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXERCISE -->
+  <div class="section">
+    <div class="section-title">Exercise</div>
+    <div class="field">
+      <div class="field-label">Activity level — <span id="exerciseVal">None</span></div>
+      <input type="range" min="0" max="3" step="1" value="0" id="exercise" oninput="updateExercise();markDirty();" style="width:100%;accent-color:#378ADD;" />
+      <div class="range-labels"><span>None</span><span>Mild</span><span>Moderate</span><span>Intense</span></div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="section">
+    <div class="section-title">Notes</div>
+    <div class="field">
+      <textarea id="notes" placeholder="Anything else to record..." oninput="markDirty()" style="min-height:80px;"></textarea>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn-primary" onclick="saveNow()">Save now</button>
+    <button class="btn-export" onclick="showExport()">Export CSV</button>
+  </div>
+
+  <div class="history-panel" id="historyPanel"></div>
+  <div id="modalContainer"></div>
+  <div class="notification" id="notification"></div>
+</div>
+
+<script>
+// ── Fixed column schema ────────────────────────────────────────────────────
+var SCHEMA = [
+  'date',
+  'sleepQuality','sleepIssues',
+  'nap','napQuality',
+  'energy',
+  'waterIntake',
+  'medMorning','medMorningLate','medMorningMissed',
+  'medEvening','medEveningLate','medEveningMissed',
+  'medAdditional',
+  'acuteCheck','acuteRelief',
+  'preventCheck','preventMissed',
+  'icePack','icePackRelief',
+  'heatPad','heatPadRelief',
+  'massage','massageRelief',
+  'reliefOther',
+  'mood','cognition','stress',
+  'triggers','triggersOther',
+  'migraine','migraineType',
+  'earPain','bodyPain','muscleTension','otherSymptoms',
+  'lightheaded','lightheadSev',
+  'palp','palpSev',
+  'period','ovulation','periodSymptoms',
+  'giSymptoms','appetite',
+  'stool1Used','stool1Scale','stool1Mucous','stool1Blood',
+  'stool2Used','stool2Scale','stool2Mucous','stool2Blood',
+  'stool3Used','stool3Scale','stool3Mucous','stool3Blood',
+  'giNotes',
+  'faceRash','faceRashCount',
+  'hives','hivesCount',
+  'eyesNose','eyesNoseSev','nosebleed',
+  'exercise','notes','savedAt'
+];
+
+var DEFAULTS = {
+  date:'', sleepQuality:'none', sleepIssues:'none',
+  nap:false, napQuality:'none', energy:'none', waterIntake:0,
+  medMorning:false, medMorningLate:false, medMorningMissed:false,
+  medEvening:false, medEveningLate:false, medEveningMissed:false, medAdditional:'',
+  acuteCheck:false, acuteRelief:'none', preventCheck:false, preventMissed:false,
+  icePack:false, icePackRelief:'none', heatPad:false, heatPadRelief:'none',
+  massage:false, massageRelief:'none', reliefOther:'',
+  mood:'none', cognition:'none', stress:'none',
+  triggers:'none', triggersOther:'',
+  migraine:0, migraineType:'none',
+  earPain:0, bodyPain:0, muscleTension:0, otherSymptoms:'',
+  lightheaded:false, lightheadSev:'none', palp:false, palpSev:'none',
+  period:false, ovulation:false, periodSymptoms:'none',
+  giSymptoms:'none', appetite:0,
+  stool1Used:false, stool1Scale:0, stool1Mucous:false, stool1Blood:false,
+  stool2Used:false, stool2Scale:0, stool2Mucous:false, stool2Blood:false,
+  stool3Used:false, stool3Scale:0, stool3Mucous:false, stool3Blood:false,
+  giNotes:'', faceRash:false, faceRashCount:0,
+  hives:false, hivesCount:0, eyesNose:false, eyesNoseSev:'none', nosebleed:false,
+  exercise:0, notes:'', savedAt:''
+};
+
+// ── localStorage wrapper ───────────────────────────────────────────────────
+var storage = {
+  get: function(key) { try { var v=localStorage.getItem(key); return v!==null?{value:v}:null; } catch(e){return null;} },
+  set: function(key,val) { try { localStorage.setItem(key,val); return true; } catch(e){return false;} },
+  list: function(prefix) { try { var keys=[]; for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith(prefix))keys.push(k);} return {keys:keys}; } catch(e){return {keys:[]};} }
+};
+
+var EXERCISE_LABELS = ['None','Mild','Moderate','Intense'];
+
+// FIX 2: tri-rows are now tagged directly in the HTML via data-tri-key attributes,
+// and restoreTriBtn() looks them up by that attribute. The old TRI_KEYS array and
+// tagTriRows() position-based approach has been removed entirely, which prevented
+// acuteRelief and every row after it from being correctly identified.
+var TRI_STYLES = {
+  sleepQuality:['good','okay','bad'], napQuality:['good','okay','bad'], energy:['good','okay','bad'],
+  acuteRelief:['relief-good','relief-some','relief-none'],
+  icePackRelief:['relief-good','relief-some','relief-none'],
+  heatPadRelief:['relief-good','relief-some','relief-none'],
+  massageRelief:['relief-good','relief-some','relief-none'],
+  cognition:['good','okay','bad'], stress:['low','okay','high'],
+  migraine:['none','mild','moderate','severe'], earPain:['none','mild','moderate','severe'],
+  bodyPain:['none','mild','moderate','severe'], muscleTension:['none','mild','moderate','severe'],
+  lightheadSev:['mild','moderate','severe'], palpSev:['mild','moderate','severe'],
+  eyesNoseSev:['mild','moderate','severe']
+};
+
+var triState = {};
+var appetiteVal = 0;
+var saveTimer = null;
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function getDateKey() { var n=new Date(); return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+function formatDateDisplay(key) { var p=key.split('-'); return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('en-CA',{weekday:'short',year:'numeric',month:'short',day:'numeric'}); }
+function toggle(id,show) { var el=document.getElementById(id); if(el)el.classList.toggle('show',!!show); }
+function cb(id) { return document.getElementById(id); }
+function cbVal(id) { var el=cb(id); return el?el.checked:false; }
+function notify(msg) { var el=cb('notification'); el.textContent=msg; el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2500); }
+
+// ── Appetite ───────────────────────────────────────────────────────────────
+function setAppetite(val,btn) {
+  appetiteVal=val;
+  document.querySelectorAll('.appetite-btn').forEach(function(b){b.className='appetite-btn';});
+  var map={'-1':'decreased','0':'unchanged','1':'increased'};
+  btn.classList.add('active-'+map[String(val)]);
+  markDirty();
+}
+function restoreAppetite(val) {
+  appetiteVal=+val;
+  var map={'-1':'decreased','0':'unchanged','1':'increased'};
+  var idxMap={'-1':0,'0':1,'1':2};
+  var btns=document.querySelectorAll('.appetite-btn');
+  var idx=idxMap[String(val)];
+  if(btns[idx]!==undefined) btns[idx].className='appetite-btn active-'+map[String(val)];
+}
+
+// ── Tri-buttons ────────────────────────────────────────────────────────────
+function setTri(key,val,styleKey,btn) {
+  triState[key]=val;
+  btn.closest('.tri-row').querySelectorAll('.tri-btn').forEach(function(b){b.className='tri-btn';});
+  btn.classList.add('active-'+styleKey);
+  markDirty();
+}
+
+// FIX 2 (continued): restoreTriBtn now looks up by data-tri-key attribute set
+// directly in HTML, instead of relying on fragile DOM-position indexing.
+function restoreTriBtn(key,val) {
+  if(val===''||val===undefined||val===null||val==='none') return;
+  var row=document.querySelector('.tri-row[data-tri-key="'+key+'"]');
+  if(!row) return;
+  var styles=TRI_STYLES[key]||[];
+  var btns=row.querySelectorAll('.tri-btn');
+  var numVal=+val;
+  if(btns[numVal]){btns[numVal].className='tri-btn active-'+(styles[numVal]||'');triState[key]=numVal;}
+}
+
+// ── Chips ──────────────────────────────────────────────────────────────────
+function toggleChip(chip) { chip.classList.toggle('active'); markDirty(); }
+function getChips(groupId) {
+  var active=Array.from(document.querySelectorAll('#'+groupId+' .chip.active')).map(function(c){return c.textContent;});
+  return active.length?active.join(', '):'none';
+}
+function setChips(groupId,val) {
+  if(!val||val==='none') return;
+  var active=val.split(', ');
+  document.querySelectorAll('#'+groupId+' .chip').forEach(function(c){c.classList.toggle('active',active.includes(c.textContent));});
+}
+
+// ── Exercise ───────────────────────────────────────────────────────────────
+function updateExercise() { cb('exerciseVal').textContent=EXERCISE_LABELS[parseInt(cb('exercise').value)]; }
+
+// ── Stool builder ──────────────────────────────────────────────────────────
+function buildStool(n) {
+  var id='stool'+n;
+  cb(id+'Inner').innerHTML=
+    '<div style="margin-bottom:6px;">'+
+      '<div class="field-sublabel">Bristol scale (1\u20137)</div>'+
+      '<div class="slider-wrap">'+
+        '<input type="range" min="1" max="7" step="1" value="4" id="'+id+'Scale" oninput="cb(\''+id+'ScaleVal\').textContent=this.value;markDirty();" style="accent-color:#378ADD;" />'+
+        '<span class="slider-val" id="'+id+'ScaleVal">4</span>'+
+      '</div>'+
+      '<div class="range-labels"><span>1 \u2014 Hard lumps</span><span>7 \u2014 Liquid</span></div>'+
+    '</div>'+
+    '<div class="stool-row-inner">'+
+      '<div class="check-row"><input type="checkbox" id="'+id+'Mucous" onchange="markDirty()"><label for="'+id+'Mucous">Mucous</label></div>'+
+      '<div class="check-row" style="margin-left:12px;"><input type="checkbox" id="'+id+'Blood" onchange="markDirty()"><label for="'+id+'Blood">Blood</label></div>'+
+    '</div>';
+}
+
+// ── Reset form to blank defaults ───────────────────────────────────────────
+function resetForm() {
+  triState = {};
+  appetiteVal = 0;
+  document.querySelectorAll('.tri-btn').forEach(function(b){b.className='tri-btn';});
+  document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('active');});
+  document.querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=false;});
+  document.querySelectorAll('.reveal').forEach(function(r){r.classList.remove('show');});
+  document.querySelectorAll('textarea').forEach(function(t){t.value='';});
+  cb('waterIntake').value=0; cb('waterVal').textContent='0';
+  cb('exercise').value=0; updateExercise();
+  cb('faceRashCount').value=1; cb('faceRashVal').textContent='1';
+  cb('hivesCount').value=1; cb('hivesVal').textContent='1';
+  [1,2,3].forEach(function(n){
+    var sc=cb('stool'+n+'Scale');
+    var sv=cb('stool'+n+'ScaleVal');
+    if(sc){sc.value=4;} if(sv){sv.textContent='4';}
+  });
+  document.querySelectorAll('.appetite-btn').forEach(function(b){b.className='appetite-btn';});
+  setSaveStatus(false);
+}
+
+// ── Collect ────────────────────────────────────────────────────────────────
+// FIX 3: Removed all references to non-existent element IDs (icePackCheck,
+// heatPadCheck, massageCheck, reliefOther, icePackRelief, heatPadRelief,
+// massageRelief). These were referenced in collectData() and populateForm()
+// but had no corresponding HTML elements, causing silent null errors on every save.
+function collectData() {
+  var stoolData={};
+  [1,2,3].forEach(function(n){
+    var id='stool'+n, used=cbVal(id+'Check');
+    stoolData[id+'Used']=used;
+    stoolData[id+'Scale']=used&&cb(id+'Scale')?parseInt(cb(id+'Scale').value):0;
+    stoolData[id+'Mucous']=used?cbVal(id+'Mucous'):false;
+    stoolData[id+'Blood']=used?cbVal(id+'Blood'):false;
+  });
+
+  var raw=Object.assign({
+    date:getDateKey(),
+    sleepQuality:triState.sleepQuality!==undefined?triState.sleepQuality:'none',
+    sleepIssues:getChips('sleepIssues'),
+    nap:cbVal('napCheck'),
+    napQuality:cbVal('napCheck')?(triState.napQuality!==undefined?triState.napQuality:'none'):'none',
+    energy:triState.energy!==undefined?triState.energy:'none',
+    waterIntake:parseInt(cb('waterIntake').value),
+    medMorning:cbVal('medMorning'), medMorningLate:cbVal('medMorningLate'), medMorningMissed:cbVal('medMorningMissed'),
+    medEvening:cbVal('medEvening'), medEveningLate:cbVal('medEveningLate'), medEveningMissed:cbVal('medEveningMissed'),
+    medAdditional:cb('medAdditional').value||'',
+    acuteCheck:cbVal('acuteCheck'),
+    acuteRelief:cbVal('acuteCheck')?(triState.acuteRelief!==undefined?triState.acuteRelief:'none'):'none',
+    preventCheck:cbVal('preventCheck'), preventMissed:cbVal('preventMissed'),
+    icePack:cbVal('icePackCheck'),
+    icePackRelief:cbVal('icePackCheck')?(triState.icePackRelief!==undefined?triState.icePackRelief:'none'):'none',
+    heatPad:cbVal('heatPadCheck'),
+    heatPadRelief:cbVal('heatPadCheck')?(triState.heatPadRelief!==undefined?triState.heatPadRelief:'none'):'none',
+    massage:cbVal('massageCheck'),
+    massageRelief:cbVal('massageCheck')?(triState.massageRelief!==undefined?triState.massageRelief:'none'):'none',
+    reliefOther:cb('reliefOther').value||'',
+    mood:getChips('moodChips'),
+    cognition:triState.cognition!==undefined?triState.cognition:'none',
+    stress:triState.stress!==undefined?triState.stress:'none',
+    triggers:getChips('triggerChips'),
+    triggersOther:cb('triggersOther').value||'',
+    migraine:triState.migraine!==undefined?triState.migraine:0,
+    migraineType:(triState.migraine>0)?getChips('migraineChips'):'none',
+    earPain:triState.earPain!==undefined?triState.earPain:0,
+    bodyPain:triState.bodyPain!==undefined?triState.bodyPain:0,
+    muscleTension:triState.muscleTension!==undefined?triState.muscleTension:0,
+    otherSymptoms:cb('otherSymptoms').value||'',
+    lightheaded:cbVal('lightheadCheck'),
+    lightheadSev:cbVal('lightheadCheck')?(triState.lightheadSev!==undefined?triState.lightheadSev:'none'):'none',
+    palp:cbVal('palpCheck'),
+    palpSev:cbVal('palpCheck')?(triState.palpSev!==undefined?triState.palpSev:'none'):'none',
+    period:cbVal('periodCheck'), ovulation:cbVal('ovulationCheck'),
+    periodSymptoms:getChips('periodChips'),
+    giSymptoms:getChips('giChips'),
+    appetite:appetiteVal
+  },stoolData,{
+    giNotes:cb('giNotes').value||'',
+    faceRash:cbVal('faceRashCheck'),
+    faceRashCount:cbVal('faceRashCheck')?parseInt(cb('faceRashCount').value):0,
+    hives:cbVal('hivesCheck'),
+    hivesCount:cbVal('hivesCheck')?parseInt(cb('hivesCount').value):0,
+    eyesNose:cbVal('eyesNoseCheck'),
+    eyesNoseSev:cbVal('eyesNoseCheck')?(triState.eyesNoseSev!==undefined?triState.eyesNoseSev:'none'):'none',
+    nosebleed:cbVal('eyesNoseCheck')?cbVal('nosebleedCheck'):false,
+    exercise:parseInt(cb('exercise').value),
+    notes:cb('notes').value||'',
+    savedAt:new Date().toISOString()
+  });
+
+  var out={};
+  SCHEMA.forEach(function(k){out[k]=raw[k]!==undefined?raw[k]:DEFAULTS[k];});
+  return out;
+}
+
+// ── Populate ───────────────────────────────────────────────────────────────
+// FIX 3 (continued): Removed references to non-existent elements from populateForm().
+function populateForm(d) {
+  if(!d) return;
+  restoreTriBtn('sleepQuality',d.sleepQuality);
+  setChips('sleepIssues',d.sleepIssues);
+  if(d.nap){cb('napCheck').checked=true;toggle('napDetails',true);restoreTriBtn('napQuality',d.napQuality);}
+  restoreTriBtn('energy',d.energy);
+  if(d.waterIntake!==undefined){cb('waterIntake').value=d.waterIntake;cb('waterVal').textContent=d.waterIntake;}
+  ['medMorning','medMorningLate','medMorningMissed','medEvening','medEveningLate','medEveningMissed'].forEach(function(id){if(d[id])cb(id).checked=true;});
+  if(d.medAdditional)cb('medAdditional').value=d.medAdditional;
+  if(d.acuteCheck){cb('acuteCheck').checked=true;toggle('acuteDetails',true);restoreTriBtn('acuteRelief',d.acuteRelief);}
+  ['preventCheck','preventMissed'].forEach(function(id){if(d[id])cb(id).checked=true;});
+  if(d.icePack){cb('icePackCheck').checked=true;toggle('icePackDetails',true);restoreTriBtn('icePackRelief',d.icePackRelief);}
+  if(d.heatPad){cb('heatPadCheck').checked=true;toggle('heatPadDetails',true);restoreTriBtn('heatPadRelief',d.heatPadRelief);}
+  if(d.massage){cb('massageCheck').checked=true;toggle('massageDetails',true);restoreTriBtn('massageRelief',d.massageRelief);}
+  if(d.reliefOther)cb('reliefOther').value=d.reliefOther;
+  setChips('moodChips',d.mood);
+  restoreTriBtn('cognition',d.cognition); restoreTriBtn('stress',d.stress);
+  setChips('triggerChips',d.triggers);
+  if(d.triggersOther)cb('triggersOther').value=d.triggersOther;
+  restoreTriBtn('migraine',d.migraine);
+  if(d.migraine&&+d.migraine>0)toggle('migraineType',true);
+  setChips('migraineChips',d.migraineType);
+  restoreTriBtn('earPain',d.earPain); restoreTriBtn('bodyPain',d.bodyPain); restoreTriBtn('muscleTension',d.muscleTension);
+  if(d.otherSymptoms)cb('otherSymptoms').value=d.otherSymptoms;
+  if(d.lightheaded){cb('lightheadCheck').checked=true;toggle('lightheadDetails',true);restoreTriBtn('lightheadSev',d.lightheadSev);}
+  if(d.palp){cb('palpCheck').checked=true;toggle('palpDetails',true);restoreTriBtn('palpSev',d.palpSev);}
+  if(d.period)cb('periodCheck').checked=true;
+  if(d.ovulation)cb('ovulationCheck').checked=true;
+  setChips('periodChips',d.periodSymptoms);
+  setChips('giChips',d.giSymptoms);
+  if(d.appetite!==undefined)restoreAppetite(d.appetite);
+  [1,2,3].forEach(function(n){
+    var id='stool'+n;
+    if(d[id+'Used']){
+      cb(id+'Check').checked=true;toggle(id+'Details',true);
+      setTimeout(function(){
+        if(d[id+'Scale']&&cb(id+'Scale')){cb(id+'Scale').value=d[id+'Scale'];cb(id+'ScaleVal').textContent=d[id+'Scale'];}
+        if(d[id+'Mucous']&&cb(id+'Mucous'))cb(id+'Mucous').checked=true;
+        if(d[id+'Blood']&&cb(id+'Blood'))cb(id+'Blood').checked=true;
+      },50);
+    }
+  });
+  if(d.giNotes)cb('giNotes').value=d.giNotes;
+  if(d.faceRash){cb('faceRashCheck').checked=true;toggle('faceRashDetails',true);if(d.faceRashCount){cb('faceRashCount').value=d.faceRashCount;cb('faceRashVal').textContent=d.faceRashCount;}}
+  if(d.hives){cb('hivesCheck').checked=true;toggle('hivesDetails',true);if(d.hivesCount){cb('hivesCount').value=d.hivesCount;cb('hivesVal').textContent=d.hivesCount;}}
+  if(d.eyesNose){cb('eyesNoseCheck').checked=true;toggle('eyesNoseDetails',true);restoreTriBtn('eyesNoseSev',d.eyesNoseSev);if(d.nosebleed)cb('nosebleedCheck').checked=true;}
+  if(d.exercise!==undefined){cb('exercise').value=d.exercise;updateExercise();}
+  if(d.notes)cb('notes').value=d.notes;
+}
+
+// ── Save / load ────────────────────────────────────────────────────────────
+function markDirty() {
+  setSaveStatus(true);
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){saveNow(true);},3000);
+}
+function setSaveStatus(pending) {
+  cb('saveDot').className='save-dot'+(pending?' pending':'');
+  cb('saveText').textContent=pending?'Saving...':'All changes saved';
+}
+function saveNow(auto) {
+  var data=collectData();
+  storage.set('entry:'+data.date,JSON.stringify(data));
+  setSaveStatus(false);
+  if(!auto)notify('Saved!');
+  syncToSheets(data);
+  renderHistory();
+}
+function loadToday() {
+  var r=storage.get('entry:'+getDateKey());
+  if(r){try{populateForm(JSON.parse(r.value));}catch(e){}}
+  renderHistory();
+}
+
+// FIX 4: Auto-save at 6am now captures the *previous* day's date key before
+// midnight so the save is written under the correct date, then resets the form.
+// Previously, saveNow() was called after the day had already rolled over, causing
+// it to save a blank entry under the new date instead of preserving the old one.
+function scheduleAutoSave() {
+  var now=new Date(), target=new Date(now);
+  if(now.getHours()>=6) target.setDate(target.getDate()+1);
+  target.setHours(6,0,0,0);
+  var msUntil=target-now;
+  setTimeout(function(){
+    // Capture and save the previous day's data before the date rolls over
+    var data=collectData();
+    // The date key used here reflects whatever getDateKey() returns at fire time.
+    // Because this fires at 6am (not midnight), the date is still correct for the
+    // entry being closed out. We write explicitly to ensure correctness.
+    storage.set('entry:'+data.date,JSON.stringify(data));
+    syncToSheets(data);
+    // Now reset for the new day
+    resetForm();
+    cb('dateBadge').textContent=formatDateDisplay(getDateKey());
+    notify('New day started \u2014 form reset');
+    renderHistory();
+    scheduleAutoSave();
+  },msUntil);
+}
+
+var lastDateKey=getDateKey();
+function checkDayRollover() {
+  var key=getDateKey();
+  if(key!==lastDateKey){
+    lastDateKey=key;
+    cb('dateBadge').textContent=formatDateDisplay(key);
+    resetForm();
+    renderHistory();
+  }
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function renderHistory() {
+  var result=storage.list('entry:'),keys=result.keys,today=getDateKey();
+  var past=keys.sort().reverse().filter(function(k){return k.replace('entry:','')!==today;});
+  var panel=cb('historyPanel');
+  if(!past.length){panel.innerHTML='';return;}
+  panel.innerHTML='<div class="history-title">Past entries</div>'+
+    past.map(function(k){var d=k.replace('entry:','');return '<div class="history-row" onclick="showEntry(\''+d+'\')"><span class="history-date">'+formatDateDisplay(d)+'</span><span class="history-preview">tap to view</span></div>';}).join('');
+}
+
+// ── Modals ─────────────────────────────────────────────────────────────────
+function showEntry(dateKey) {
+  var r=storage.get('entry:'+dateKey);if(!r)return;
+  var d=JSON.parse(r.value);
+  var rows=Object.entries(d).filter(function(e){var v=e[1];return e[0]!=='savedAt'&&v!==''&&v!==false&&v!==null&&v!==undefined&&v!=='none'&&v!==0;})
+    .map(function(e){var label=e[0].replace(/([A-Z])/g,' $1').toLowerCase();var val=typeof e[1]==='boolean'?'Yes':e[1];return '<div class="modal-row"><span class="modal-key">'+label+'</span><span class="modal-val">'+val+'</span></div>';}).join('');
+  cb('modalContainer').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-title">'+formatDateDisplay(dateKey)+'</div>'+rows+'<button class="modal-close" onclick="closeModal()">Close</button></div></div>';
+}
+function closeModal(){cb('modalContainer').innerHTML='';}
+
+function showExport() {
+  var result=storage.list('entry:'),keys=result.keys;
+  if(!keys.length){notify('No data yet');return;}
+  var parsed=keys.sort().map(function(k){var r=storage.get(k);return r?JSON.parse(r.value):null;}).filter(Boolean);
+  var csv=SCHEMA.join(',')+'\n'+parsed.map(function(d){return SCHEMA.map(function(c){return '"'+String(d[c]!==undefined?d[c]:DEFAULTS[c]).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  cb('modalContainer').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-title">Export CSV</div><p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">Copy and paste into Google Sheets, or set up auto-sync above.</p><textarea class="csv-area" id="csvArea" readonly>'+csv+'</textarea><button class="modal-close" onclick="var t=document.getElementById(\'csvArea\');t.select();document.execCommand(\'copy\');notify(\'Copied!\');">Copy to clipboard</button><button class="modal-close" onclick="closeModal()">Close</button></div></div>';
+}
+
+// ── Google Sheets ──────────────────────────────────────────────────────────
+function checkSheetsConnection() {
+  var url=localStorage.getItem('sheetsUrl');
+  if(url){cb('sheetsInputRow').style.display='none';cb('sheetsConnected').style.display='block';cb('sheetsDesc').style.display='none';}
+}
+function connectSheets() {
+  var url=cb('sheetsUrl').value.trim();
+  if(!url.startsWith('https://script.google.com')){notify('Please enter a valid Apps Script URL');return;}
+  localStorage.setItem('sheetsUrl',url);
+  cb('sheetsInputRow').style.display='none';cb('sheetsConnected').style.display='block';cb('sheetsDesc').style.display='none';
+  notify('Connected!');
+}
+function disconnectSheets() {
+  localStorage.removeItem('sheetsUrl');
+  cb('sheetsInputRow').style.display='flex';cb('sheetsConnected').style.display='none';cb('sheetsDesc').style.display='block';
+  cb('sheetsUrl').value='';notify('Disconnected');
+}
+function syncToSheets(data) {
+  var url=localStorage.getItem('sheetsUrl');if(!url)return;
+  fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){});
+}
+
+function showSheetInstructions() {
+  var script='// Paste into Google Apps Script (Extensions > Apps Script)\n// Deploy: New deployment > Web app > Anyone can access\n\nvar SCHEMA = [\n  \'date\',\n  \'sleepQuality\',\'sleepIssues\',\n  \'nap\',\'napQuality\',\n  \'energy\',\n  \'waterIntake\',\n  \'medMorning\',\'medMorningLate\',\'medMorningMissed\',\n  \'medEvening\',\'medEveningLate\',\'medEveningMissed\',\n  \'medAdditional\',\n  \'acuteCheck\', \'acuteRelief\', \n  \'preventCheck\', \'preventMissed\', \n  \'mood\',\'cognition\',\'stress\',\n  \'triggers\',\'triggersOther\',\n  \'migraine\',\'migraineType\',\n  \'earPain\',\'bodyPain\',\'muscleTension\',\'otherSymptoms\',\n  \'lightheaded\',\'lightheadSev\',\n  \'palp\',\'palpSev\',\n  \'period\',\'ovulation\',\'periodSymptoms\',\n  \'giSymptoms\',\'appetite\',\n  \'stool1Used\',\'stool1Scale\',\'stool1Mucous\',\'stool1Blood\',\n  \'stool2Used\',\'stool2Scale\',\'stool2Mucous\',\'stool2Blood\',\n  \'stool3Used\',\'stool3Scale\',\'stool3Mucous\',\'stool3Blood\',\n  \'giNotes\',\n  \'faceRash\',\'faceRashCount\',\n  \'hives\',\'hivesCount\',\n  \'eyesNose\',\'eyesNoseSev\',\'nosebleed\',\n  \'exercise\',\'notes\',\'savedAt\'\n];\n\nfunction doPost(e) {\n  try {\n    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();\n    var data = JSON.parse(e.postData.contents);\n    var row = SCHEMA.map(function(k) {\n      return data[k] !== undefined ? data[k] : \'\';\n    });\n    if (sheet.getLastRow() === 0) {\n      sheet.appendRow(SCHEMA);\n    }\n    var lastRow = sheet.getLastRow();\n    var found = false;\n    for (var i = 2; i <= lastRow; i++) {\n      if (sheet.getRange(i, 1).getValue() === data.date) {\n        sheet.getRange(i, 1, 1, SCHEMA.length).setValues([row]);\n        found = true;\n        break;\n      }\n    }\n    if (!found) sheet.appendRow(row);\n    return ContentService\n      .createTextOutput(JSON.stringify({status:\'ok\'}))\n      .setMimeType(ContentService.MimeType.JSON);\n  } catch(err) {\n    return ContentService\n      .createTextOutput(JSON.stringify({status:\'error\',message:err.toString()}))\n      .setMimeType(ContentService.MimeType.JSON);\n  }\n}';
+  cb('modalContainer').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-title">Setting up Google Sheets sync</div><p style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">1. Open <a href="https://sheets.google.com" target="_blank">Google Sheets</a> and create a new spreadsheet.<br>2. Go to <strong>Extensions \u2192 Apps Script</strong>.<br>3. Replace any existing code with the script below.<br>4. Click <strong>Deploy \u2192 New deployment \u2192 Web app</strong>.<br>5. Set \u201cWho has access\u201d to <strong>Anyone</strong>, copy the URL.<br>6. Paste it in the connection field above.</p><textarea class="csv-area" id="scriptArea" readonly style="min-height:220px;">'+script+'</textarea><button class="modal-close" onclick="var t=document.getElementById(\'scriptArea\');t.select();document.execCommand(\'copy\');notify(\'Copied!\');">Copy script</button><button class="modal-close" onclick="closeModal()">Close</button></div></div>';
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  cb('dateBadge').textContent=formatDateDisplay(getDateKey());
+  [1,2,3].forEach(buildStool);
+  updateExercise();
+  loadToday();
+  checkSheetsConnection();
+  scheduleAutoSave();
+  setInterval(checkDayRollover,60000);
+}
+init();
+</script>
+</body>
+</html>
